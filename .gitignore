@@ -1,0 +1,9 @@
+dataset/
+data/
+checkpoints/
+__pycache__/
+*.npy
+*.npz
+*.pt
+venv/
+.vscode/
