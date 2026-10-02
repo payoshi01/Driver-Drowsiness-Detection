@@ -17,7 +17,6 @@ MODEL_3D = np.array([[0, 0, 0], [0, 63.6, 12.5], [-43.3, -32.7, 26], [43.3, -32.
 
 _meshes = {}
 
-
 def _mesh(static):
     if static not in _meshes:
         _meshes[static] = mp.solutions.face_mesh.FaceMesh(
@@ -25,24 +24,19 @@ def _mesh(static):
             min_detection_confidence=0.5, min_tracking_confidence=0.5)
     return _meshes[static]
 
-
 def _d(a, b):
     return float(np.linalg.norm(a - b))
-
 
 def ear(pts, idx):
     p = pts[idx]
     return (_d(p[1], p[5]) + _d(p[2], p[4])) / (2.0 * _d(p[0], p[3]) + 1e-6)
 
-
 def mar(pts):
     h = np.mean([_d(pts[a], pts[b]) for a, b in MOUTH_H])
     return h / (_d(pts[MOUTH_W[0]], pts[MOUTH_W[1]]) + 1e-6)
 
-
 def _wrap(a):
     return (a + 90.0) % 180.0 - 90.0
-
 
 def head_pose(pts, shape):
     """Returns yaw, pitch, roll in degrees (sign convention arbitrary but consistent)."""
@@ -56,11 +50,9 @@ def head_pose(pts, shape):
     pitch, yaw, roll = cv2.RQDecomp3x3(R)[0]
     return _wrap(yaw), _wrap(pitch), _wrap(roll)
 
-
 def nose_offset(pts):
     x0, y0 = pts.min(0); x1, y1 = pts.max(0)
     return (pts[1, 0] - (x0 + x1) / 2) / (x1 - x0 + 1e-6), (pts[1, 1] - (y0 + y1) / 2) / (y1 - y0 + 1e-6)
-
 
 def _square_crop(img, sel, scale):
     x0, y0 = sel.min(0); x1, y1 = sel.max(0)
@@ -71,7 +63,6 @@ def _square_crop(img, sel, scale):
     if c - a < 4 or d - b < 4:
         return np.zeros((CROP_SIZE, CROP_SIZE, 3), np.uint8)
     return cv2.resize(img[b:d, a:c], (CROP_SIZE, CROP_SIZE), interpolation=cv2.INTER_AREA)
-
 
 def extract(frame_bgr, static=False):
     """-> (feats float32[9], eye_rgb 64x64x3 uint8, mouth_rgb 64x64x3 uint8, pts (478,2) float32) or None if no face.
@@ -89,7 +80,6 @@ def extract(frame_bgr, static=False):
     eye = _square_crop(rgb, pts[R_EYE + L_EYE], 1.6)
     mouth = _square_crop(rgb, pts[MOUTH_CROP], 1.6)
     return feats, eye, mouth, pts
-
 
 def crop_to_array(crop_rgb):
     """uint8 HxWx3 RGB -> float32 3xHxW in [0,1]. The model normalises internally."""
