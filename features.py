@@ -1,17 +1,15 @@
-"""MediaPipe Face Mesh -> geometric features + eye/mouth crops.
-Shared by build_features.py (training) and app.py (runtime) so preprocessing never drifts."""
 import cv2, numpy as np
 import mediapipe as mp
 from config import CROP_SIZE
 
-R_EYE = [33, 160, 158, 133, 153, 144]        # subject's right eye (p1..p6 order for EAR)
+R_EYE = [33, 160, 158, 133, 153, 144]        
 L_EYE = [362, 385, 387, 263, 373, 380]
-MOUTH_H = [(13, 14), (82, 87), (312, 317)]    # inner-lip vertical pairs
-MOUTH_W = (78, 308)                           # inner-lip corners
+MOUTH_H = [(13, 14), (82, 87), (312, 317)]    
+MOUTH_W = (78, 308)                           
 MOUTH_CROP = [61, 291, 13, 14, 0, 17]
 DRAW_IDX = R_EYE + L_EYE + [61, 291, 13, 14]
-POSE_IDX = [1, 152, 33, 263, 61, 291]         # nose, chin, eye corners, mouth corners
-# generic 3D face model (mm), camera frame: x right, y down, z away from camera
+POSE_IDX = [1, 152, 33, 263, 61, 291]         
+
 MODEL_3D = np.array([[0, 0, 0], [0, 63.6, 12.5], [-43.3, -32.7, 26], [43.3, -32.7, 26],
                      [-28.9, 28.9, 24.1], [28.9, 28.9, 24.1]], np.float64)
 
@@ -39,7 +37,7 @@ def _wrap(a):
     return (a + 90.0) % 180.0 - 90.0
 
 def head_pose(pts, shape):
-    """Returns yaw, pitch, roll in degrees (sign convention arbitrary but consistent)."""
+    
     h, w = shape[:2]
     cam = np.array([[w, 0, w / 2], [0, w, h / 2], [0, 0, 1]], np.float64)
     ok, rvec, _ = cv2.solvePnP(MODEL_3D, pts[POSE_IDX].astype(np.float64), cam, np.zeros((4, 1)),
@@ -65,8 +63,7 @@ def _square_crop(img, sel, scale):
     return cv2.resize(img[b:d, a:c], (CROP_SIZE, CROP_SIZE), interpolation=cv2.INTER_AREA)
 
 def extract(frame_bgr, static=False):
-    """-> (feats float32[9], eye_rgb 64x64x3 uint8, mouth_rgb 64x64x3 uint8, pts (478,2) float32) or None if no face.
-    static=True for independent still images (dataset building), False for video/webcam (tracking)."""
+    
     rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
     res = _mesh(static).process(rgb)
     if not res.multi_face_landmarks:
@@ -82,5 +79,5 @@ def extract(frame_bgr, static=False):
     return feats, eye, mouth, pts
 
 def crop_to_array(crop_rgb):
-    """uint8 HxWx3 RGB -> float32 3xHxW in [0,1]. The model normalises internally."""
+    
     return crop_rgb.astype(np.float32).transpose(2, 0, 1) / 255.0
