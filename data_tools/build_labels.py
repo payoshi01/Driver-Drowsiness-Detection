@@ -46,7 +46,7 @@ for src, g in df.groupby("source"):
         split_of[s]="test" if i<n_test else("val" if i<n_test+n_val else "train")
 df["split"]=df.subject_id.map(split_of)
 df.to_csv(LABELS_CSV, index=False)
-if "--freez" in sys.argv:
+if "--freeze" in sys.argv:
     shutil.copy(LABELS_CSV, os.path.join(DATASET, "labels_v1.csv"))
     print("froze labels_v1.csv") 
 
