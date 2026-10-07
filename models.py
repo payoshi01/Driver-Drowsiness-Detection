@@ -77,7 +77,6 @@ def build_model(name, pretrained=False):
 
 
 def load_model(path):
-    """FP32 checkpoint (dict) or pickled INT8 model -> eval() model on CPU."""
     torch.backends.quantized.engine = QENGINE
     obj = torch.load(path, map_location="cpu", weights_only=False)
     if isinstance(obj, dict):
