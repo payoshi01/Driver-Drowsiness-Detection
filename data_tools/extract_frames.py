@@ -24,3 +24,6 @@ if __name__=="__main__":
         name=os.path.basename(video).lower()
         if any(k in name for k in ("yawn", "normal", "talk")):
             extract(video, os.path.join(FRAMES, "yawdd"), 0)
+    youtube_videos=sorted(glob.glob(os.path.join(RAW, "youtube", "*.mp4"), recursive=True))
+    for video in tqdm(youtube_videos, desc="youtube"):
+        extract(video, os.path.join(FRAMES, "youtube"), TRIM_FRAMES)

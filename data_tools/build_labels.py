@@ -34,6 +34,34 @@ for p in glob.glob(os.path.join(FRAMES, "yawdd", "*.jpg")):
                      clip_id=stem.rsplit("_f", 1)[0], label=lab, label_id=LABEL_ID[lab], eye_state="", lighting="",
                      glasses=int(bool(m.group(3)) and m.group(3).lower()!="noglasses")))
 
+for p in glob.glob(os.path.join(FRAMES, "youtube", "*.jpg")):
+    stem = os.path.basename(p).lower()
+
+    if stem.startswith("drowsy_"):
+        lab = "Drowsy"
+    elif stem.startswith("focused_"):
+        lab = "Focused"
+    elif stem.startswith("yawning_"):
+        lab = "Yawning"
+    elif stem.startswith(("lookaway_", "lookingaway_")):
+        lab = "LookingAway"
+    else:
+        continue
+
+    rows.append(dict(
+        filepath=rel(p),
+        source="youtube",
+        subject_id=f"youtube_{os.path.basename(p).split('_f')[0]}",
+        clip_id=os.path.basename(p).rsplit("_f", 1)[0],
+        label=lab,
+        label_id=LABEL_ID[lab],
+        eye_state="closed" if lab == "Drowsy" else (
+            "open" if lab == "Focused" else ""
+        ),
+        lighting="",
+        glasses=0
+    ))
+
 df=pd.DataFrame(rows)
 if df.empty: sys.exit("No files found. Did you download the datasets / extract frames?")
 
