@@ -54,7 +54,7 @@ def train_one(name, a):
     best, best_state = -1, None
     for ep in range(a.epochs):
         model.train(); tot = 0
-        for eye, mouth, feats, y in batches(tr, a.bs, shuffle=True, augment=True, seed=ep):
+        for eye, mouth, feats, y in batches(tr, a.bs, shuffle=True, augment=True, seed=ep, balanced=False):
             loss = crit(model(eye, mouth, feats), y); opt.zero_grad(); loss.backward(); opt.step(); tot += loss.item()
         sched.step()
         f1 = metrics(va["label_id"], predict(model, va))["macro_f1"]

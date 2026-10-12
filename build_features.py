@@ -12,7 +12,7 @@ a = ap.parse_args()
 ensure_dirs()
 
 df = pd.read_csv(a.labels)
-df = df[df.source.isin(["yawdd", "own"])].reset_index(drop=True)
+df = df[df.source.isin(["yawdd", "own", "youtube"])].reset_index(drop=True)
 N = len(df)
 F = np.zeros((N, NUM_FEATURES), np.float32)
 E = np.zeros((N, CROP_SIZE, CROP_SIZE, 3), np.uint8); M = np.zeros_like(E)

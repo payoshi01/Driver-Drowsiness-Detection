@@ -1,9 +1,10 @@
 import numpy as np, torch
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 from config import NUM_CLASSES
+from torch.utils.data import WeightedRandomSampler
 
 
-def load_split(npz_path, split, lighting=None, sources=("yawdd", "own")):
+def load_split(npz_path, split, lighting=None, sources=("yawdd", "own", "youtube")):
     d = np.load(npz_path)
     m = (d["split"] == split) & (d["face_found"] == 1) & (d["label_id"] >= 0) & np.isin(d["source"], sources)
     if lighting:
@@ -21,17 +22,36 @@ def augment_light(x):
     return (on * dark + (1 - on) * x).clamp(0, 1)
 
 
-def batches(d, bs=128, shuffle=False, augment=False, seed=0):
-    n = len(d["label_id"]); idx = np.arange(n)
-    if shuffle:
+
+def batches(d, bs=128, shuffle=False, augment=False, seed=0, balanced=False):
+    n = len(d["label_id"])
+    if n == 0:
+        return
+    labels = d["label_id"].astype(int)
+    idx = np.arange(n)
+    if balanced and shuffle:
+        counts = np.bincount(labels, minlength=NUM_CLASSES)
+        class_weights = 1.0 / np.maximum(counts, 1)
+        sample_weights = class_weights[labels]
+        generator = torch.Generator()
+        generator.manual_seed(seed)
+        sampler = WeightedRandomSampler(
+            weights=torch.as_tensor(sample_weights, dtype=torch.double), num_samples=n,
+            replacement=True, generator=generator)
+        idx = list(sampler)
+    elif shuffle:
         np.random.RandomState(seed).shuffle(idx)
     for i in range(0, n, bs):
         j = idx[i:i + bs]
-        eye = torch.from_numpy(d["eye"][j]).permute(0, 3, 1, 2).float() / 255
-        mouth = torch.from_numpy(d["mouth"][j]).permute(0, 3, 1, 2).float() / 255
+        eye = torch.from_numpy(
+            d["eye"][j]
+        ).permute(0, 3, 1, 2).float() / 255
+        mouth = torch.from_numpy(
+            d["mouth"][j]
+        ).permute(0, 3, 1, 2).float() / 255
         if augment:
             eye, mouth = augment_light(eye), augment_light(mouth)
-        yield eye, mouth, torch.from_numpy(d["feats"][j]).float(), torch.from_numpy(d["label_id"][j]).long()
+        yield (eye, mouth, torch.from_numpy(d["feats"][j]).float(), torch.from_numpy(labels[j]).long())
 
 
 @torch.no_grad()
