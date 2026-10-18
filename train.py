@@ -37,10 +37,23 @@ def pretrain_eye(epochs=3, n_train=30000, n_val=5000):
     torch.save(net.state_dict(), EYE_BACKBONE); print("saved", EYE_BACKBONE)
 
 
+def focal_loss(logits, targets, alpha=None, gamma=2.0):
+    log_probs = nn.functional.log_softmax(logits, dim=1)
+    log_pt = log_probs.gather(1, targets.unsqueeze(1)).squeeze(1)
+    pt = log_pt.exp()
+    loss = -((1 - pt) ** gamma) * log_pt
+    if alpha is not None:
+        loss = loss * alpha[targets]
+    return loss.mean()
+
 def train_one(name, a):
+    arch = "cnn" if name == "cnn_focal" else name
     seed_everything(); ensure_dirs()
-    tr, va, te = (load_split(FEATURES_NPZ, s) for s in ("train", "val", "test"))
-    model = build_model(name, pretrained=a.pretrained)
+    if a.run_name:
+        os.makedirs(os.path.join(CKPT_FP32, a.run_name), exist_ok=True)
+        os.makedirs(os.path.join(RESULTS, a.run_name), exist_ok=True)
+    tr, va, te = (load_split(a.features, s) for s in ("train", "val", "test"))
+    model = build_model(arch, pretrained=a.pretrained)
     model.f_mean.copy_(torch.from_numpy(tr["feats"].mean(0)))
     model.f_std.copy_(torch.from_numpy(tr["feats"].std(0) + 1e-6))
     if model.use_crops and model.backbone == "small" and os.path.exists(EYE_BACKBONE) and not a.no_pretrained_eye:
@@ -48,7 +61,10 @@ def train_one(name, a):
     cnt = np.bincount(tr["label_id"], minlength=NUM_CLASSES).astype(np.float32)
     w = torch.tensor(cnt.sum() / (NUM_CLASSES * np.maximum(cnt, 1)))
     print(name, "train class counts", cnt.astype(int).tolist())
-    crit = nn.CrossEntropyLoss(weight=w)
+    if a.loss == "focal":
+        crit = lambda logits, y: focal_loss(logits, y, alpha=w.to(logits.device), gamma=a.gamma)
+    else:
+        crit = nn.CrossEntropyLoss(weight=w)
     opt = torch.optim.Adam(model.parameters(), lr=a.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, a.epochs)
     best, best_state = -1, None
@@ -61,32 +77,38 @@ def train_one(name, a):
         print(f"{name} ep {ep+1:02d} loss {tot:.2f} val macro-F1 {f1:.3f}")
         if f1 > best: best, best_state = f1, copy.deepcopy(model.state_dict())
     model.load_state_dict(best_state)
-    torch.save(dict(name=name, state_dict=best_state, classes=CLASSES, val_macro_f1=best), os.path.join(CKPT_FP32, f"{name}.pt"))
+    torch.save(dict(name=name, state_dict=best_state, classes=CLASSES, val_macro_f1=best), os.path.join(CKPT_FP32, a.run_name, f"{name}.pt") if a.run_name else os.path.join(CKPT_FP32, f"{name}.pt"))
     res = metrics(te["label_id"], predict(model, te))
-    json.dump(res, open(os.path.join(RESULTS, f"ablation_{name}.json"), "w"), indent=2)
+    json.dump(res, open(os.path.join(RESULTS, a.run_name, f"ablation_{name}.json") if a.run_name else os.path.join(RESULTS, f"ablation_{name}.json"), "w"), indent=2)
     cm = np.array(res["cm"]); fig, ax = plt.subplots(figsize=(4.5, 4))
     ax.imshow(cm, cmap="Blues"); ax.set_xticks(range(4)); ax.set_xticklabels(CLASSES, rotation=45, ha="right")
     ax.set_yticks(range(4)); ax.set_yticklabels(CLASSES); ax.set_xlabel("predicted"); ax.set_ylabel("true"); ax.set_title(name)
     for i in range(4):
         for j in range(4): ax.text(j, i, cm[i, j], ha="center", va="center")
-    fig.tight_layout(); fig.savefig(os.path.join(RESULTS, f"cm_{name}.png"), dpi=200); plt.close(fig)
+    fig.tight_layout(); fig.savefig(os.path.join(RESULTS, a.run_name, f"cm_{name}.png") if a.run_name else os.path.join(RESULTS, f"cm_{name}.png"), dpi=200); plt.close(fig)
     print(f"== {name}: TEST acc {res['acc']:.3f} macro-F1 {res['macro_f1']:.3f}")
     return dict(model=name, acc=res["acc"], macro_f1=res["macro_f1"], **{f"f1_{c}": f for c, f in zip(CLASSES, res["f1_per_class"])})
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
+    ap.add_argument("--features", default=FEATURES_NPZ)
+    ap.add_argument("--run-name", default="")
     ap.add_argument("--models", nargs="+", default=["geo", "cnn", "fusion"])
-    ap.add_argument("--epochs", type=int, default=25); ap.add_argument("--bs", type=int, default=128)
+    ap.add_argument("--epochs", type=int, default=25)
+    ap.add_argument("--bs", type=int, default=128)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--pretrained", action="store_true", help="ImageNet weights for MobileNetV3")
     ap.add_argument("--pretrain-eye", action="store_true"); ap.add_argument("--no-pretrained-eye", action="store_true")
-    a = ap.parse_args(); ensure_dirs()
+    ap.add_argument("--loss", choices=["ce", "focal"], default="ce")
+    ap.add_argument("--gamma", type=float, default=2.0)
+    a = ap.parse_args()
+    ensure_dirs()
     if a.pretrain_eye:
         pretrain_eye()
     else:
         rows = [train_one(m, a) for m in a.models]
-        out = os.path.join(RESULTS, "ablation.csv")
+        out = os.path.join(RESULTS, a.run_name, "ablation.csv") if a.run_name else os.path.join(RESULTS, "ablation.csv")
         new = pd.DataFrame(rows)
         if os.path.exists(out):
             old = pd.read_csv(out); new = pd.concat([old[~old.model.isin(new.model)], new])
