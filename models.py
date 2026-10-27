@@ -1,6 +1,8 @@
 import torch, torch.nn as nn, torch.nn.functional as F
 from torch.ao.quantization import QuantStub, DeQuantStub, fuse_modules
 from config import NUM_CLASSES, NUM_FEATURES, QENGINE
+from torch.ao.quantization import get_default_qconfig, get_default_qconfig_mapping, prepare, convert
+from torch.ao.quantization.quantize_fx import prepare_fx, convert_fx
 
 
 class ConvBNReLU(nn.Sequential):
@@ -77,10 +79,22 @@ def build_model(name, pretrained=False):
 
 
 def load_model(path):
+    """FP32 checkpoint, or INT8 checkpoint (weights only) -> eval() model on CPU."""
     torch.backends.quantized.engine = QENGINE
     obj = torch.load(path, map_location="cpu", weights_only=False)
-    if isinstance(obj, dict):
-        model = build_model(obj["name"]); model.load_state_dict(obj["state_dict"])
-    else:
-        model = obj
+    if not isinstance(obj, dict):                      # legacy pickled model
+        return obj.eval()
+    model = build_model(obj["name"]).eval()
+    if obj.get("quant"):
+        names = ["enc_eye", "enc_mouth"]
+        if obj["mode"] == "eager":
+            for n in names:
+                enc = getattr(model, n); enc.fuse(); enc.qconfig = get_default_qconfig(QENGINE)
+                prepare(enc, inplace=True); convert(enc, inplace=True)
+        else:
+            qmap = get_default_qconfig_mapping(QENGINE)
+            for n in names:
+                enc = prepare_fx(getattr(model, n).eval(), qmap, (torch.randn(1, 3, 64, 64),))
+                setattr(model, n, convert_fx(enc))
+    model.load_state_dict(obj["state_dict"])
     return model.eval()

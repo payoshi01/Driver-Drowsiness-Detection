@@ -49,7 +49,7 @@ for n in names:
 
 out = os.path.join(CKPT_INT8, f"{a.model}_{a.mode}.pt")
 # full-model pickle (load with weights_only=False)
-torch.save(model, out)
+torch.save(dict(name=a.model, mode=a.mode, quant=True, state_dict=model.state_dict()), out)
 va = load_split(FEATURES_NPZ, "val")
 m = metrics(va["label_id"], predict(model, va))
 print(f"saved {out}  ({os.path.getsize(out)/1e6:.2f} MB, FP32 was {os.path.getsize(src)/1e6:.2f} MB)")
