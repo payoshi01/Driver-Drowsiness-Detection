@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Driver Monitor</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+ body{margin:0;font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0}
+ main{max-width:960px;margin:auto;padding:20px;display:grid;gap:16px;grid-template-columns:2fr 1fr}
+ h1{grid-column:1/-1;margin:0;font-size:22px}
+ .card{background:#1e293b;border-radius:12px;padding:14px}
+ video{width:100%;border-radius:10px;transform:scaleX(-1);background:#000}
+ #status{font-size:26px;font-weight:700;text-align:center;padding:14px;border-radius:10px;background:#166534}
+ #status.warn{background:#b91c1c;animation:p .6s infinite alternate}
+ #status.idle{background:#475569}
+ @keyframes p{to{opacity:.6}}
+ table{width:100%;border-collapse:collapse} td{padding:5px 0;border-bottom:1px solid #334155}
+ td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+ button{padding:10px 16px;border:0;border-radius:8px;background:#2563eb;color:#fff;font-size:15px;cursor:pointer;width:100%}
+ #reasons{min-height:22px;color:#fca5a5;margin-top:8px;text-align:center}
+ @media(max-width:700px){main{grid-template-columns:1fr}}
+</style></head><body><main>
+<h1>🚗 Real-time Driver Drowsiness &amp; Distraction Monitor</h1>
+<div class="card">
+  <video id="v" autoplay playsinline muted></video>
+  <div id="status" class="idle">Camera off</div>
+  <div id="reasons"></div>
+</div>
+<div class="card">
+  <button id="btn">Start Camera</button>
+  <h3>Live metrics</h3>
+  <table>
+   <tr><td>Eye openness (EAR)</td><td id="ear">-</td></tr>
+   <tr><td>Mouth open (MAR)</td><td id="mar">-</td></tr>
+   <tr><td>Head yaw ratio</td><td id="yaw">-</td></tr>
+   <tr><td>Head pitch ratio</td><td id="pitch">-</td></tr>
+   <tr><td>Blinks</td><td id="blinks">0</td></tr>
+   <tr><td>Yawns</td><td id="yawns">0</td></tr>
+  </table>
+  <p style="font-size:12px;color:#94a3b8">Keep your face well-lit and visible. Thresholds live in detector.py.</p>
+</div>
+<canvas id="c" hidden></canvas>
+</main>
+<script>
+const v=document.getElementById('v'),c=document.getElementById('c'),st=document.getElementById('status');
+const $=id=>document.getElementById(id);
+let running=false, audio, beepTimer;
+function beep(){
+  audio=audio||new (window.AudioContext||window.webkitAudioContext)();
+  const o=audio.createOscillator(),g=audio.createGain();
+  o.frequency.value=880;g.gain.value=.25;o.connect(g);g.connect(audio.destination);
+  o.start();o.stop(audio.currentTime+.25);
+}
+async function loop(){
+  if(!running)return;
+  c.width=480;c.height=Math.round(480*v.videoHeight/v.videoWidth)||360;
+  c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+  try{
+    const r=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({image:c.toDataURL('image/jpeg',.7)})});
+    show(await r.json());
+  }catch(e){st.textContent='Server error';st.className='warn'}
+  setTimeout(loop,100);
+}
+function show(d){
+  const bad=d.status!=='OK'&&d.status!=='NO_FACE';
+  st.textContent=d.status.replace('_',' ');
+  st.className=bad?'warn':(d.status==='NO_FACE'?'idle':'');
+  $('reasons').textContent=d.reasons.join(' • ');
+  for(const k of ['ear','mar','yaw','pitch'])$(k).textContent=d.metrics[k]??'-';
+  $('blinks').textContent=d.blinks;$('yawns').textContent=d.yawns;
+  if(bad&&!beepTimer){beep();beepTimer=setInterval(beep,500)}
+  if(!bad&&beepTimer){clearInterval(beepTimer);beepTimer=null}
+}
+$('btn').onclick=async()=>{
+  if(running){running=false;v.srcObject.getTracks().forEach(t=>t.stop());
+    $('btn').textContent='Start Camera';st.textContent='Camera off';st.className='idle';
+    clearInterval(beepTimer);beepTimer=null;return}
+  try{
+    v.srcObject=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480}});
+    await v.play();running=true;$('btn').textContent='Stop';loop();
+  }catch(e){alert('Camera access denied: '+e.message)}
+};
+</script></body></html>
