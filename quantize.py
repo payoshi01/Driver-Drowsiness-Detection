@@ -38,7 +38,7 @@ else:
                 qmap, (torch.randn(1, 3, 64, 64),)))
 
 with torch.no_grad():                                   # calibration pass (half the samples are darkened)
-    for eye, mouth, feats, _ in batches(calib, 50, augment=True):
+    for eye, mouth, feats, _ in batches(calib, 50, augment=False):
         model(eye, mouth, feats)
 
 for n in names:

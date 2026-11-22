@@ -13,7 +13,6 @@ def load_split(npz_path, split, lighting=None, sources=("yawdd", "own", "youtube
 
 
 def augment_light(x):
-    
     B = x.size(0)
     on = (torch.rand(B, 1, 1, 1) < 0.5).float()
     g = 1 + torch.rand(B, 1, 1, 1) * 1.2

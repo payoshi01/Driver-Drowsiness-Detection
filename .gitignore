@@ -1,11 +1,44 @@
-#dataset/
-data/
-checkpoints/
-__pycache__/
-*.npy
-*.npz
-*.pt
-venv/
-.vscode/
 .DS_Store
 **/.DS_Store
+
+# Environment
+.vscode/
+venv/
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Raw data and extracted frames/crops (largest items)
+dataset/
+data/
+data/raw/
+data/videos/
+data/frames/
+data/crops/
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Extracted feature files
+*.npz
+*.npy
+*.zip
+*.csv
+*.pkl
+
+# Model checkpoints and quantized models
+*.pt
+*.pth
+*.onnx
+checkpoints/
+runs/
+
+# Outputs and logs
+outputs/
+results/*
+!results/*.csv
+!results/*.json
+!results/*.png
+*.log
