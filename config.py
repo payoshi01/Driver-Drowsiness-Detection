@@ -38,7 +38,7 @@ ALERT_FRAMES=45
 RELEASE_FRAMES=15
 NOFACE_FRAMES=15
 PERCLOS_WINDOW_S=30
-PERCLOSE_THRESH=0.20
+PERCLOS_THRESH=0.20
 
 QENGINE="qnnpack" if platform.machine().lower() in ("aarch64", "arm64", "armv7l") else "fbgemm"
 

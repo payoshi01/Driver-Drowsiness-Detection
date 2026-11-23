@@ -30,12 +30,13 @@
   <table>
    <tr><td>Eye openness (EAR)</td><td id="ear">-</td></tr>
    <tr><td>Mouth open (MAR)</td><td id="mar">-</td></tr>
-   <tr><td>Head yaw ratio</td><td id="yaw">-</td></tr>
-   <tr><td>Head pitch ratio</td><td id="pitch">-</td></tr>
+   <tr><td>Head yaw (deg)</td><td id="yaw">-</td></tr>
+   <tr><td>Head pitch (deg)</td><td id="pitch">-</td></tr>
+   <tr><td>PERCLOS</td><td id="perclos">-</td></tr>
    <tr><td>Blinks</td><td id="blinks">0</td></tr>
    <tr><td>Yawns</td><td id="yawns">0</td></tr>
   </table>
-  <p style="font-size:12px;color:#94a3b8">Keep your face well-lit and visible. Thresholds live in detector.py.</p>
+  <p style="font-size:12px;color:#94a3b8">Keep your face well-lit and visible. The state comes from the trained model and the temporal rules in smoother.py.</p>
 </div>
 <canvas id="c" hidden></canvas>
 </main>
@@ -66,6 +67,7 @@ function show(d){
   st.className=bad?'warn':(d.status==='NO_FACE'?'idle':'');
   $('reasons').textContent=d.reasons.join(' • ');
   for(const k of ['ear','mar','yaw','pitch'])$(k).textContent=d.metrics[k]??'-';
+  $('perclos').textContent=d.perclos??'-';
   $('blinks').textContent=d.blinks;$('yawns').textContent=d.yawns;
   if(bad&&!beepTimer){beep();beepTimer=setInterval(beep,500)}
   if(!bad&&beepTimer){clearInterval(beepTimer);beepTimer=null}
@@ -76,7 +78,7 @@ $('btn').onclick=async()=>{
     clearInterval(beepTimer);beepTimer=null;return}
   try{
     v.srcObject=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480}});
-    await v.play();running=true;$('btn').textContent='Stop';loop();
+    await v.play();await fetch('/reset',{method:'POST'});running=true;$('btn').textContent='Stop';loop();
   }catch(e){alert('Camera access denied: '+e.message)}
 };
 </script></body></html>
