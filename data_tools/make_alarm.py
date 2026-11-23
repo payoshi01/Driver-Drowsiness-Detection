@@ -1,4 +1,3 @@
-"""Generate alarm.wav (beeps) so no binary asset is needed."""
 import os, sys, wave
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
