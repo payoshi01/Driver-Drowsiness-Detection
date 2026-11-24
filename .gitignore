@@ -42,3 +42,4 @@ results/*
 !results/*.json
 !results/*.png
 *.log
+research_paper/
