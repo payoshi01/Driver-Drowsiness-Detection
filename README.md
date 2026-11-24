@@ -6,9 +6,6 @@ Real-time driver monitoring from a single RGB webcam. Each frame is classified i
 
 Class order is fixed everywhere: `Focused=0, Drowsy=1, Yawning=2, LookingAway=3`.
 
-This repository accompanies the IEEE conference paper *Lightweight four-state driver monitoring with Face Mesh, a crop CNN and INT8 quantization* (VIT Bhopal).
-Section numbers below refer to that paper.
-
 ## Main results (held-out, subject-disjoint test split, 21,874 frames)
 
 | Model | Params | Accuracy | Macro-F1 |
@@ -46,7 +43,7 @@ templates/index.html browser demo page
 run_all.sh           whole pipeline after raw data is in place
 data_tools/          record.py, extract_frames.py, build_labels.py, make_lowlight.py, make_alarm.py
 tests/               subject-leakage and class-coverage tests
-dataset/  data/  checkpoints/  results/  paper/
+dataset/  data/  checkpoints/  results/ 
 ```
 
 Large data, features and model files (`dataset/`, `data/`, `checkpoints/*.pt`) are not tracked in git.
@@ -73,7 +70,7 @@ python data_tools/make_alarm.py        # creates alarm.wav for the desktop beep
    python data_tools/record.py p01 bright noglasses
    python data_tools/record.py p01 dim    noglasses
    ```
-   Our own set has seven subjects with clips for Drowsy and Looking Away, three of them recorded in a dark room lit only by a study lamp (paper Section III-B). Drowsy and Looking Away clips also include YouTube subjects.
+   Our own set has seven subjects with clips for Drowsy and Looking Away, three of them recorded in a dark room lit only by a study lamp. Drowsy and Looking Away clips also include YouTube subjects.
 4. Frames, labels, subject-level split and the low-light copies of the test split:
    ```bash
    python data_tools/extract_frames.py
@@ -113,7 +110,7 @@ python benchmark.py --name cnn --precision int8_eager --ckpt checkpoints/int8/cn
 python benchmark.py --plot                           # results/benchmark_summary.csv + charts
 ```
 
-`--ckpt` is required. Run each benchmark in a fresh process with other apps closed, and repeat three times (the paper reports medians of three runs).
+`--ckpt` is required. Run each benchmark in a fresh process with other apps closed, and repeat three times.
 On ARM devices (for example Raspberry Pi) the engine switches to `qnnpack` automatically (`config.QENGINE`).
 
 ## 5. Demos
@@ -133,7 +130,7 @@ python web_app.py --ckpt checkpoints\int8\cnn_eager.pt
 Open `http://127.0.0.1:5000` and press **Start Camera**. The page sends webcam frames to a local server that runs the same pipeline. It shows the status, live EAR/MAR/yaw/pitch, PERCLOS, and blink and yawn counts. The server only listens on `127.0.0.1`. Use `--port N` if 5000 is busy.
 A blink is counted when EAR stays below the threshold in `thresholds.json` for 0.05-1.0 s; a yawn is counted on each change of state to Yawning.
 
-### Temporal decision layer (paper Section III-H)
+### Temporal decision layer
 
 | Rule | Value |
 |---|---|
@@ -165,7 +162,7 @@ Because PERCLOS covers 30 s, the alarm can stay on for roughly 16-25 s after the
 
 - MRL Eye dataset (eye open/closed, infrared)
 - YawDD (Yawning Detection Dataset, in-vehicle)
-- Own webcam recordings and YouTube videos (see paper Section III)
+- Own webcam recordings and YouTube videos
 
 Cite the original dataset papers when you use them.
 
